@@ -1,0 +1,76 @@
+networks:
+  wp_net:
+    name: wp_net
+    driver: bridge
+    external: false
+
+
+volumes:
+  db-data:
+    name: db-data
+    driver: local
+
+  wp-data:
+    name: wp-data
+    driver: local
+
+
+services:
+  mysql:
+    image: mysql
+    container_name: mysql
+    hostname: mysql
+    restart: always
+    networks:
+      - wp_net
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: AlirezaTaaty
+      MYSQL_PASSWORD: alirezapass123
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      # test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      # test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # test: "curl -f http://localhost || exit 1"
+      timeout: 20s
+      retries: 10
+
+  wordpress:
+    image: wordpress
+    container_name: wordpress
+    hostname: wordpress
+    restart: always
+    networks:
+      - wp_net
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_USER: AlirezaTaaty
+      WORDPRESS_DB_PASSWORD: alirezapass123
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp-data:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    hostname: nginx
+    restart: always
+    networks:
+      - wp_net
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
